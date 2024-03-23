@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Room Lobby</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+    }
+    .container {
+        text-align: center;
+        margin-top: 50px;
+    }
+    .video-container {
+        display: inline-block;
+        margin: 20px;
+    }
+    button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        margin: 5px;
+    }
+    .hidden {
+        display: none;
+    }
+</style>
+</head>
+<body>
+<div class="container" id="lobbyScreen">
+    <h2>Lobby</h2>
+    <div class="room-key">Room Key: <input type="text" id="lobbyKeyInput"> <button onclick="enterRoom()">Enter Room</button></div>
+    <button onclick="generateRoomKey()">Generate Room Key</button>
+</div>
+
+<div class="container video-container hidden" id="roomScreen">
+    <h2>Room</h2>
+    <div class="room-key">Room Key: <span id="roomKey"></span></div>
+    <video id="video" controls autoplay></video>
+    <button onclick="toggleCamera()">Toggle Camera</button>
+    <button onclick="toggleMicrophone()">Toggle Microphone</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/simple-peer@9"></script>
+<script>
+    let myPeer;
+    let videoStream;
+    let audioStream;
+    let roomScreen = document.getElementById('roomScreen');
+    let lobbyScreen = document.getElementById('lobbyScreen');
+
+    // Funkcja do wejścia do pokoju
+    function enterRoom() {
+        const enteredKey = document.getElementById('lobbyKeyInput').value.trim();
+        const roomKey = document.getElementById('roomKey').innerText.trim();
+
+        if (enteredKey === roomKey) {
+            lobbyScreen.classList.add('hidden');
+            roomScreen.classList.remove('hidden');
+    
+            // Pobranie dostępu do kamery i mikrofonu urządzenia
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(function(stream) {
+                videoStream = stream;
+                audioStream = stream;
+    
+                // Ustawienie strumienia wideo i audio jako źródła dla elementu <video>
+                document.getElementById('video').srcObject = videoStream;
+
+                // Inicjowanie połączenia WebRTC
+                myPeer = new SimplePeer({ initiator: true, stream: stream });
+                myPeer.on('signal', function(data) {
+                    console.log('SIGNAL', JSON.stringify(data));
+                });
+                myPeer.on('stream', function(stream) {
+                    // Odbieranie strumienia audio/video od innych użytkowników
+                    document.getElementById('video').srcObject = stream;
+                });
+            })
+            .catch(function(err) {
+                console.error('Błąd: ', err);
+            });
+        } else {
+            alert('Invalid room key!');
+        }
+    }
+
+    // Funkcja do generowania losowego klucza pokoju
+    function generateRoomKey() {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let key = '';
+        for (let i = 0; i < 6; i++) {
+            key += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        document.getElementById('roomKey').innerText = key;
+    }
+
+    // Funkcja do włączania/wyłączania kamery
+    function toggleCamera() {
+        const tracks = videoStream.getVideoTracks();
+        tracks.forEach(track => {
+            track.enabled = !track.enabled; // Odwróć stan kamery (włącz/wyłącz)
+        });
+    }
+
+    // Funkcja do włączania/wyłączania mikrofonu
+    function toggleMicrophone() {
+        const tracks = audioStream.getAudioTracks();
+        tracks.forEach(track => {
+            track.enabled = !track.enabled; // Odwróć stan mikrofonu (włącz/wyłącz)
+        });
+    }
+</script>
+</body>
+</html>
